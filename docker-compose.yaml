@@ -1,0 +1,103 @@
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    ports:
+      - "9870:9870"
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+      - ./data:/input_data
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    depends_on:
+      - namenode
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: always
+    env_file:
+      - ./hadoop.env
+    depends_on:
+      - namenode
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: always
+    env_file:
+      - ./hadoop.env
+    depends_on:
+      - namenode
+      - resourcemanager
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Spark Master integrado no mesmo ambiente
+  spark-master:
+    image: bitnamilegacy/spark:3.5
+    container_name: spark-master
+    user: root
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/opt/bitnami/spark/data
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  spark-worker:
+    image: bitnamilegacy/spark:3.5
+    container_name: spark-worker
+    user: root
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    volumes:
+      - ./data:/opt/bitnami/spark/data
+    depends_on:
+      - spark-master
+    deploy:
+      resources:
+        limits:
+          memory: 4G # Spark Workers precisam de mais fôlego para o executor
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
